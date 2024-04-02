@@ -9,40 +9,44 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class TriviaServer {
-    private int tcpPort = 9999; // Adjusted TCP port for client connections
-    private int udpPort = 9999; // Adjusted UDP port for receiving polled answers
+	
+    private int udpPort = 7777;
+    private int tcpPort = 4321;
+
     private ExecutorService clientExecutor = Executors.newCachedThreadPool();
     private Map<Integer, ClientHandler> clientHandlers = new HashMap<>();
-    private volatile boolean firstBuzz = true;
-    private volatile int buzzingClientID = -1;
     private List<Question> questions = new ArrayList<>();
+
+    public TriviaServer() {
+        initializeQuestions();
+    }
 
     public static void main(String[] args) {
         TriviaServer server = new TriviaServer();
-        server.initializeQuestions();
         server.start();
+        server.listenForCommands();
     }
 
     public void start() {
         startUDPListener();
-        try (ServerSocket serverSocket = new ServerSocket(tcpPort);
-             BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in))) {
-            System.out.println("Trivia Server started. Listening on TCP port " + tcpPort + ".");
-            while (true) {
-                Socket clientSocket = serverSocket.accept();
-                int clientID = clientSocket.getPort(); // Simplistic client identification
-                ClientHandler handler = new ClientHandler(clientSocket, clientID, this, questions);
-                clientHandlers.put(clientID, handler);
-                clientExecutor.submit(handler);
+        new Thread(() -> {
+            try (ServerSocket serverSocket = new ServerSocket(tcpPort)) {
+                System.out.println("Trivia Server started. Listening on TCP port " + tcpPort + ".");
+                while (true) {
+                    Socket clientSocket = serverSocket.accept();
+                    int clientID = clientSocket.getPort();
+                    ClientHandler handler = new ClientHandler(clientSocket, clientID, this, questions);
+                    clientHandlers.put(clientID, handler);
+                    clientExecutor.submit(handler);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        }).start();
     }
 
     private void startUDPListener() {
@@ -53,16 +57,7 @@ public class TriviaServer {
                 while (true) {
                     DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                     socket.receive(packet);
-                    if (firstBuzz) {
-                        String received = new String(packet.getData(), 0, packet.getLength()).trim();
-                        System.out.println("First buzz received from: " + received);
-                        firstBuzz = false;
-                        buzzingClientID = Integer.parseInt(received);
-                        ClientHandler handler = clientHandlers.get(buzzingClientID);
-                        if (handler != null) {
-                            handler.enableAnswering();
-                        }
-                    }
+                    // Handling of UDP packets (e.g., buzzing) goes here
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -89,11 +84,7 @@ public class TriviaServer {
             clientHandler.sendNextQuestion();
         }
     }
-    
-    public void resetBuzzing() {
-        firstBuzz = true;
-        buzzingClientID = -1;
-    }
+
 
     private void initializeQuestions() {
         List<String> options1 = List.of("Option 1", "Option 2", "Option 3", "Option 4");
@@ -106,70 +97,24 @@ public class TriviaServer {
         private int clientID;
         private TriviaServer server;
         private PrintWriter out;
+        private BufferedReader in;
         private List<Question> questions;
         private int currentQuestionIndex = 0;
         
-        // Example of keeping track of scores for each client
-        private static ConcurrentHashMap<String, Integer> clientScores = new ConcurrentHashMap<>();
-        private String clientId;
-
         public ClientHandler(Socket socket, int clientID, TriviaServer server, List<Question> questions) {
             this.clientSocket = socket;
             this.clientID = clientID;
             this.server = server;
-            this.questions = questions; // Now correctly setting the questions list
+            this.questions = questions;
         }
         
-     // Assuming a method to get the correct answer for the current question
-        private String getCorrectAnswerForCurrentQuestion() {
-            // This is just a placeholder. In a real application, you would have a way to get the current question's correct answer.
-            return "CorrectAnswer";
-        }
-        
-     // Calculate score for an answer
-        private int calculateScoreForAnswer(String clientId, String answer) {
-            String correctAnswer = getCorrectAnswerForCurrentQuestion();
-            int score = clientScores.getOrDefault(clientId, 0);
-            
-            if (answer.equals(correctAnswer)) {
-                score += 10; // Award 10 points for a correct answer
-            } else {
-                score -= 10; // Deduct 10 points for a wrong answer
-            }
-            
-            clientScores.put(clientId, score);
-            return score;
-        }
-        
-     // Deduct points for a timeout
-        private int deductPointsForTimeout(String clientId) {
-            int score = clientScores.getOrDefault(clientId, 0);
-            score -= 20; // Deduct 20 points for not answering within the time limit
-            clientScores.put(clientId, score);
-            return score;
-        }
-
         @Override
         public void run() {
             try {
                 out = new PrintWriter(clientSocket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                String inputLine;
-                
-                sendQuestion(out, questions.get(currentQuestionIndex));
-                
-                
-                while ((inputLine = in.readLine()) != null) {
-                    System.out.println("Message from client #" + clientID + ": " + inputLine);
-                    // Handle messages, e.g., ANSWER optionX
-                    if (inputLine.startsWith("ANSWER")) {
-                        String answer = inputLine.split(" ")[1];
-                        int newScore = calculateScoreForAnswer(clientId, answer);
-                        out.println("SCORE " + newScore); // Send new score back to client
-                    } else if (inputLine.equals("TIMEOUT")) {
-                        int newScore = deductPointsForTimeout(clientId);
-                        out.println("SCORE " + newScore); // Send new score back to client
-                    }
+                in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                while (true) {
+                    // Listen for messages from the client, such as "ANSWER <choice>"
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -182,28 +127,28 @@ public class TriviaServer {
                 server.clientHandlers.remove(clientID);
             }
         }
-        
-        private void sendQuestion(PrintWriter out, Question question) {
-            out.println("QUESTION " + question.getQuestionText());
-            for (int i = 0; i < question.getOptions().size(); i++) {
-                out.println("OPTION " + (i + 1) + ": " + question.getOptions().get(i));
-            }
-        }
-        
+
         public void sendNextQuestion() {
-            if (currentQuestionIndex < questions.size()) {
+            if (!questions.isEmpty() && currentQuestionIndex < questions.size()) {
                 Question question = questions.get(currentQuestionIndex++);
-                sendQuestion(out, question);
+                sendQuestion(question);
+                // Optionally, reset flags for buzzing, answering, etc., here
             } else {
                 out.println("END OF QUESTIONS");
+                // Handle the end of the game
             }
         }
-   
+
+        private void sendQuestion(Question question) {
+            out.println("QUESTION " + question.getQuestionText());
+            for (String option : question.getOptions()) {
+                out.println("OPTION " + option);
+            }
+            // Make sure to notify clients to enable buzzers again, if necessary
+        }
 
         public void enableAnswering() {
-            out.println("ACK"); // Signal client to enable answering
+            out.println("ACK"); // Acknowledge the first to buzz in
         }
     }
 }
-
-

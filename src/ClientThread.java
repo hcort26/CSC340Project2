@@ -1,5 +1,3 @@
-
-
 import java.net.Socket;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
@@ -22,12 +20,12 @@ public class ClientThread implements Runnable {
              
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
-                // Process input from the client
-                // Respond back using out.println()
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 }
+
+
 
