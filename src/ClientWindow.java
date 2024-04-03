@@ -23,8 +23,8 @@ public class ClientWindow implements ActionListener {
     private BufferedReader in;
     private DatagramSocket udpSocket;
     private InetAddress address;
-    private int udpPort = 7777; // Ensure this matches the server's UDP port for buzzing
-    private int serverPort = 4321; // TCP port, must match the server's listening port
+    private int udpPort = 1234; // Ensure this matches the server's UDP port for buzzing
+    private int serverPort = 6666; // TCP port, must match the server's listening port
     private String serverAddress = "localhost";
     private int clientScore = 0;
     private Timer answerTimer;

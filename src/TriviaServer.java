@@ -14,8 +14,8 @@ import java.util.concurrent.Executors;
 
 public class TriviaServer {
 	
-    private int udpPort = 7777;
-    private int tcpPort = 4321;
+    private int udpPort = 1234;
+    private int tcpPort = 6666;
 
     private ExecutorService clientExecutor = Executors.newCachedThreadPool();
     private Map<Integer, ClientHandler> clientHandlers = new HashMap<>();
