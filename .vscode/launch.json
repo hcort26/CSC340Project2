@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "TriviaServer",
+            "request": "launch",
+            "mainClass": "TriviaServer",
+            "projectName": "Project2CSC340"
+        },
+        {
+            "type": "java",
             "name": "Current File",
             "request": "launch",
             "mainClass": "${file}"

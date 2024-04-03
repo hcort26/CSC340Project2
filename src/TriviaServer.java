@@ -95,7 +95,7 @@ public class TriviaServer {
         buzzingClientID = -1;
     }
 
-    private void initializeQuestions() {
+    void initializeQuestions() {
         List<String> options1 = List.of("Option 1", "Option 2", "Option 3", "Option 4");
         questions.add(new Question("What is the question?", options1, 1));
         // Add more questions as needed
