@@ -3,7 +3,7 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class TriviaServer {
+public class Server {
     private static final int portNumber = 12345;
     private static ConcurrentLinkedQueue<String> messageQueue = new ConcurrentLinkedQueue<>();
     private static List<TriviaQuestion> triviaQuestions;
@@ -97,6 +97,7 @@ public class TriviaServer {
                             if (matchingHandler != null) {
                                 try {
                                 	if ("buzz".equals(received.trim())) {
+                                		ClientHandler matchingHandlerACK = findClientHandlerByAddress(address);
                                         if (currentResponder == null) {
                                             currentResponder = address; // Marks the first responder
                                             sendACK(matchingHandler);
@@ -104,7 +105,7 @@ public class TriviaServer {
             	                            resetForNextQuestion();
             	                            broadcastNewTime(10);
                                         } else {
-                                        	sendNAKToAllExceptCurrentResponder(currentResponder);
+                                        	sendNAKToAllExceptCurrentResponder(matchingHandlerACK);
                                         	System.out.println(matchingHandler.getSocket() + "has closed");
                                         }
                                     }
@@ -126,6 +127,15 @@ public class TriviaServer {
             socket.close();
             
         }
+    }
+    
+    private static ClientHandler findClientHandlerByAddress(InetAddress address) {
+        for (ClientHandler handler : clientHandlers) {
+            if (handler.getSocket().getInetAddress().equals(address)) {
+                return handler;
+            }
+        }
+        return null; // No matching handler found
     }
 
     public static void readInFile(String path) throws FileNotFoundException {
@@ -165,9 +175,9 @@ public class TriviaServer {
         clientHandler.send("NAK");
     }
     
-    private static void sendNAKToAllExceptCurrentResponder(InetAddress currentResponder) {
+    private static void sendNAKToAllExceptCurrentResponder(ClientHandler matchingHandlerACK) {
         clientHandlers.forEach(handler -> {
-            if (!handler.getSocket().getInetAddress().equals(currentResponder)) {
+            if (!handler.getSocket().getInetAddress().equals(matchingHandlerACK)) {
                 try {
                     sendNAK(handler);
                 } catch (IOException e) {
