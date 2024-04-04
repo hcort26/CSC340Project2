@@ -5,7 +5,10 @@ import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -19,20 +22,21 @@ public class ClientWindow implements ActionListener {
     private JLabel score;
     private Timer timer;
     private TimerTask clock;
-    private String serverIP; // Variable to store the dynamically entered IP
+    private final String serverIP;
     private final int serverPort = 12345;
     private static boolean canAnswer = false;
     private JFrame window;
     public static int clientScore = 0;
 
     public ClientWindow() {
-        // Prompting for the server IP
+    	
+    	// Prompting for the server IP
         serverIP = JOptionPane.showInputDialog(window, "Enter Server IP Address:");
         if (serverIP == null || serverIP.isEmpty()) {
             JOptionPane.showMessageDialog(null, "No Server IP provided. Exiting.");
             System.exit(0); // Exiting if no IP is provided
         }
-
+    	
         window = new JFrame("Trivia");
         question = new JLabel("Waiting for Trivia to start...");
         question.setBounds(10, 5, 350, 100);
@@ -177,6 +181,10 @@ public class ClientWindow implements ActionListener {
             } else if (str.startsWith("Time ")) {
                 int time = Integer.parseInt(str.substring("Time ".length()));
                 resetTimer(time); 
+            } else if (str.startsWith("submit: ")) {
+            	canAnswer = true;
+                submit.setEnabled(true);
+                poll.setEnabled(true);
             }
         }
         reader.close();
