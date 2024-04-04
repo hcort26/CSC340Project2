@@ -92,14 +92,14 @@ public class TriviaServer {
                             }
 
                             if (matchingHandler != null) {
-                                System.out.println("Sending ACK to " + address.getHostAddress());
                                 try {
                                 	if ("buzz".equals(received.trim())) {
                                         if (currentResponder == null) {
                                             currentResponder = address; // Mark the first responder
                                             sendACK(matchingHandler);
+                                            System.out.println("Sending ACK to " + address.getHostAddress());
                                         } else {
-                                            sendNAK(matchingHandler); // Send NAK to all other buzzes
+                                        	System.out.println(matchingHandler.getSocket() + "has closed");
                                         }
                                     }
                                 } catch (IOException e) {
@@ -108,6 +108,14 @@ public class TriviaServer {
                                 }
                             } else {
                                 System.out.println("No matching TCP client found for " + address.getHostAddress());
+                            } if (matchingHandler != null) {
+                                System.out.println("Sending NAK to " + address.getHostAddress());
+                                try {
+                                    matchingHandler.send("NAK");
+                                    System.out.println("Sent NAK to " + address.getHostAddress());
+                                } catch (IOException e) {
+                                    System.out.println(matchingHandler.getSocket() + "has closed");
+                                }
                             }
                         }
                     }
@@ -333,3 +341,4 @@ public class TriviaServer {
     }
 
 }
+
