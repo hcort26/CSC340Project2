@@ -104,7 +104,7 @@ public class Server {
             	                            resetForNextQuestion();
             	                            broadcastNewTime(10);
                                         } else {
-                                        	sendNAK(matchingHandler);
+                                        	sendNAKToAllExceptCurrentResponder(currentResponder);
                                         	System.out.println(matchingHandler.getSocket() + "has closed");
                                         }
                                     }
@@ -163,6 +163,18 @@ public class Server {
     
     private static void sendNAK(ClientHandler clientHandler) throws IOException {
         clientHandler.send("NAK");
+    }
+    
+    private static void sendNAKToAllExceptCurrentResponder(InetAddress currentResponder) {
+        clientHandlers.forEach(handler -> {
+            if (!handler.getSocket().getInetAddress().equals(currentResponder)) {
+                try {
+                    sendNAK(handler);
+                } catch (IOException e) {
+                    e.printStackTrace(); // Log exception
+                }
+            }
+        });
     }
     
     
