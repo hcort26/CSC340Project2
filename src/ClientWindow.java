@@ -175,6 +175,8 @@ public class ClientWindow implements ActionListener {
         while ((str = reader.readLine()) != null) {
             if (str.startsWith("Q")) {
                 processQuestion(str.substring(1));
+                poll.setEnabled(true);
+                submit.setEnabled(false); // Keep submit disabled
             } else if (str.startsWith("SCORE:")) {
                 String newScore = str.split(":")[1].trim();
                 updateScoreLabel(newScore); // Ensure this updates the client's UI correctly
@@ -182,17 +184,11 @@ public class ClientWindow implements ActionListener {
             	 System.out.println("ACK");
                  canAnswer = true;
                  submit.setEnabled(true);
-                 for (JRadioButton option : options) {
-                     option.setEnabled(true); // Enable options for answering
-                 }
             } else if ("NAK".equals(str.trim())) {
                 System.out.println("NAK");
                 canAnswer = false;
                 submit.setEnabled(false); // Keep submit disabled
                 poll.setEnabled(false);
-                for (JRadioButton option : options) {
-                    option.setEnabled(false); // Keep options disabled
-                }
             } else if (str.startsWith("Time ")) {
                 int time = Integer.parseInt(str.substring("Time ".length()));
                 resetTimer(time); // Reset timer based on server's message
