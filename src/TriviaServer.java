@@ -3,7 +3,7 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class TriviaServer {
+public class Server {
     private static final int portNumber = 12345;
     private static ConcurrentLinkedQueue<String> messageQueue = new ConcurrentLinkedQueue<>();
     private static List<TriviaQuestion> triviaQuestions;
@@ -109,6 +109,7 @@ public class TriviaServer {
                             } else {
                                 System.out.println("No matching TCP client found for " + address.getHostAddress());
                             } if (matchingHandler != null) {
+                            	if ("buzz".equals(received.trim())) {
                                 System.out.println("Sending NAK to " + address.getHostAddress());
                                 try {
                                     matchingHandler.send("NAK");
@@ -117,7 +118,9 @@ public class TriviaServer {
                                     System.out.println(matchingHandler.getSocket() + "has closed");
                                 }
                             }
+                            }
                         }
+                            
                     }
                 } catch (IOException e) {
                     System.out.println("IOException in UDPThread: " + e.getMessage());
@@ -341,4 +344,3 @@ public class TriviaServer {
     }
 
 }
-
