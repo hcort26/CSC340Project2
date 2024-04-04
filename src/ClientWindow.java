@@ -79,13 +79,9 @@ public class ClientWindow implements ActionListener {
         }
     }
 
-    // this method is called when you check/uncheck any radio button
-    // this method is called when you press either of the buttons- submit/poll
     @Override
     public void actionPerformed(ActionEvent e) {
-        // System.out.println("You clicked " + e.getActionCommand());
 
-        // input refers to the radio button you selected or button you clicked
         String input = e.getActionCommand();
         switch (input) {
             
@@ -100,11 +96,11 @@ public class ClientWindow implements ActionListener {
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
-                canAnswer = true; // Enable answering after Poll is pressed
-                submit.setEnabled(canAnswer); // Enable Submit button
+                canAnswer = true; 
+                submit.setEnabled(canAnswer); 
                 break;
             case "Submit":
-                if (canAnswer) { // Check if answering is allowed
+                if (canAnswer) { 
                     submitAnswer();
                     poll.setEnabled(true);
                 }
@@ -115,7 +111,7 @@ public class ClientWindow implements ActionListener {
 
     }
 
-    // this class is responsible for running the timer on the window
+    // Running the timer clientside
     private void resetTimer(int durationInSeconds) {
         if (clock != null) {
             clock.cancel();
@@ -125,7 +121,7 @@ public class ClientWindow implements ActionListener {
         }
         timer = new Timer();
         clock = new TimerTask() {
-            int duration = durationInSeconds; // Use the duration provided by the server
+            int duration = durationInSeconds; 
 
             @Override
             public void run() {
@@ -153,21 +149,6 @@ public class ClientWindow implements ActionListener {
     public static void main(String[] args) {
         ClientWindow window = new ClientWindow();
     }
-
-    /* private void readFromSocket(Socket socket) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        String str;
-        while ((str = reader.readLine()) != null) {
-            if (str.startsWith("Q")) {
-                processQuestion(str.substring(1));
-            } else if (str.trim().equals("ACK")) {
-                System.out.println("ACK");
-                canAnswer = true;
-                submit.setEnabled(canAnswer);
-            }
-        }
-        reader.close();
-    } */
     
     private void readFromSocket(Socket socket) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -176,10 +157,10 @@ public class ClientWindow implements ActionListener {
             if (str.startsWith("Q")) {
                 processQuestion(str.substring(1));
                 poll.setEnabled(true);
-                submit.setEnabled(false); // Keep submit disabled
+                submit.setEnabled(false); 
             } else if (str.startsWith("SCORE:")) {
                 String newScore = str.split(":")[1].trim();
-                updateScoreLabel(newScore); // Ensure this updates the client's UI correctly
+                updateScoreLabel(newScore); 
             } else if (str.trim().equals("ACK")) {
             	 System.out.println("ACK");
                  canAnswer = true;
@@ -187,11 +168,11 @@ public class ClientWindow implements ActionListener {
             } else if ("NAK".equals(str.trim())) {
                 System.out.println("NAK");
                 canAnswer = false;
-                submit.setEnabled(false); // Keep submit disabled
+                submit.setEnabled(false); 
                 poll.setEnabled(false);
             } else if (str.startsWith("Time ")) {
                 int time = Integer.parseInt(str.substring("Time ".length()));
-                resetTimer(time); // Reset timer based on server's message
+                resetTimer(time); 
             }
         }
         reader.close();
@@ -200,7 +181,7 @@ public class ClientWindow implements ActionListener {
     private void updateScoreLabel(String newScore) {
         SwingUtilities.invokeLater(() -> {
             score.setText("SCORE: " + newScore);
-            clientScore = Integer.parseInt(newScore); // Update local score variable
+            clientScore = Integer.parseInt(newScore); 
         });
     }
 
@@ -212,10 +193,10 @@ public class ClientWindow implements ActionListener {
         String questionText = questionPart.substring(questionNumber.length() + 1).trim();
         updateOptions(questionNumber, questionText, choices);
 
-        // Resetting for new question: clear selection and disable submit button
+        
         optionGroup.clearSelection();
-        canAnswer = false; // Ensure this is false until Poll is pressed
-        submit.setEnabled(canAnswer); // Disable Submit button
+        canAnswer = false; 
+        submit.setEnabled(canAnswer); 
     }
 
 
@@ -231,7 +212,7 @@ public class ClientWindow implements ActionListener {
     
     private void submitAnswer() {
         try {
-            String selectedOption = getSelectedOption(); // This method needs to be correctly implemented
+            String selectedOption = getSelectedOption(); 
             if (!selectedOption.isEmpty()) {
                 byte[] buf = ("submit:" + selectedOption).getBytes();
                 InetAddress address = InetAddress.getByName(serverIP);
@@ -239,7 +220,7 @@ public class ClientWindow implements ActionListener {
                 DatagramSocket socket = new DatagramSocket();
                 socket.send(packet);
                 socket.close();
-                submit.setEnabled(false); // Disable submit after sending answer
+                submit.setEnabled(false);
             }
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -250,11 +231,10 @@ public class ClientWindow implements ActionListener {
     private String getSelectedOption() {
         for (int i = 0; i < options.length; i++) {
             if (options[i].isSelected()) {
-                // Assuming the options text is the exact answer to send back
-                return "Option " + (i + 1); // Adjust based on how you wish to send the answer
+                return "Option " + (i + 1); 
             }
         }
-        return ""; // No option selected
+        return ""; 
     }
     
 }
