@@ -175,9 +175,8 @@ public class ClientWindow implements ActionListener {
             if (str.startsWith("Q")) {
                 processQuestion(str.substring(1));
             } else if (str.startsWith("SCORE:")) {
-                // Extract the new score from the message
-                String newScore = str.substring("SCORE:".length());
-                updateScoreLabel(newScore); // Update the score JLabel
+                String newScore = str.split(":")[1].trim();
+                updateScoreLabel(newScore); // Ensure this updates the client's UI correctly
             } else if (str.trim().equals("ACK")) {
                 System.out.println("ACK");
                 canAnswer = true;
@@ -193,7 +192,7 @@ public class ClientWindow implements ActionListener {
     private void updateScoreLabel(String newScore) {
         SwingUtilities.invokeLater(() -> {
             score.setText("SCORE: " + newScore);
-            clientScore = Integer.parseInt(newScore); // Update internal score tracking
+            clientScore = Integer.parseInt(newScore); // Update local score variable
         });
     }
 
