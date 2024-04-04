@@ -3,7 +3,7 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class TriviaServer {
+public class Server {
     private static final int portNumber = 12345;
     private static ConcurrentLinkedQueue<String> messageQueue = new ConcurrentLinkedQueue<>();
     private static List<TriviaQuestion> triviaQuestions;
@@ -154,7 +154,6 @@ public class TriviaServer {
     private static void sendCurrentQuestionToClients(ClientHandler clientHandler) throws IOException {
         String questionData = "Q" + triviaQuestions.get(currentQuestionIndex).toString();
         clientHandler.send(questionData);
-        UDPThread.currentResponder = null;
     } 
 
     private static void sendACK(ClientHandler clientHandler) throws IOException {
@@ -194,6 +193,7 @@ public class TriviaServer {
 	                        if (submittedAnswerLetter.equalsIgnoreCase(correctAnswer)) {
 	                            submittingClient.addScore(100);
 	                            System.out.println("Correct answer submitted by: " + clientAddress);
+	                            UDPThread.currentResponder = null;
 	                        } else {
 	                        	submittingClient.subScore(150);
 	                            System.out.println("Incorrect answer submitted by: " + clientAddress);
