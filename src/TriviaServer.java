@@ -10,6 +10,8 @@ public class Server {
     private static int currentQuestionIndex = 0;
     private static boolean receivingPoll = true;
     private static List<ClientHandler> clientHandlers = new ArrayList<>();
+    private static Queue<ClientHandler> answerQueue = new ConcurrentLinkedQueue<>();
+
 
     public static void main(String[] args) {
         triviaQuestions = new ArrayList<>();
@@ -97,15 +99,34 @@ public class Server {
                             if (matchingHandler != null) {
                                 try {
                                 	if ("buzz".equals(received.trim())) {
-                                		ClientHandler matchingHandlerACK = findClientHandlerByAddress(address);
                                         if (currentResponder == null) {
                                             currentResponder = address; // Marks the first responder
-                                            sendACK(matchingHandler);
                                             System.out.println("Sending ACK to " + address.getHostAddress());
             	                            resetForNextQuestion();
             	                            broadcastNewTime(10);
+            	                            
+            	                            answerQueue.offer(matchingHandler);
+            	                            
+            	                            if (!answerQueue.isEmpty()) {
+            	                            ClientHandler firstResponder = answerQueue.poll();
+            	                            try {
+            	                                sendACK(firstResponder);
+            	                            } catch (IOException e) {
+            	                                e.printStackTrace();
+            	                            	}
+            	                            
+            	                         // Send NAK to the rest of the clients in the queue
+            	                            while (!answerQueue.isEmpty()) {
+            	                                ClientHandler handler = answerQueue.poll();
+            	                                try {
+            	                                    sendNAK(handler);
+            	                                } catch (IOException e) {
+            	                                    e.printStackTrace();
+            	                                }
+            	                            }
+            	                            }
                                         } else {
-                                        	sendNAKToAllExceptCurrentResponder(matchingHandlerACK);
+                                        	sendNAKToAllExceptCurrentResponder(matchingHandler);
                                         	System.out.println(matchingHandler.getSocket() + "has closed");
                                         }
                                     }
@@ -127,15 +148,6 @@ public class Server {
             socket.close();
             
         }
-    }
-    
-    private static ClientHandler findClientHandlerByAddress(InetAddress address) {
-        for (ClientHandler handler : clientHandlers) {
-            if (handler.getSocket().getInetAddress().equals(address)) {
-                return handler;
-            }
-        }
-        return null; // No matching handler found
     }
 
     public static void readInFile(String path) throws FileNotFoundException {
