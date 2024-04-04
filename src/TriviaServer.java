@@ -57,6 +57,9 @@ public class TriviaServer {
             socket = new DatagramSocket(portNumber);
         }
 
+        private static volatile InetAddress currentResponder = null; // To track who is the current responder
+
+        
         public void run() {
             running = true;
             while (running) {
@@ -91,7 +94,14 @@ public class TriviaServer {
                             if (matchingHandler != null) {
                                 System.out.println("Sending ACK to " + address.getHostAddress());
                                 try {
-                                    sendACK(matchingHandler); // Use the matching handler to send ACK
+                                	if ("buzz".equals(received.trim())) {
+                                        if (currentResponder == null) {
+                                            currentResponder = address; // Mark the first responder
+                                            sendACK(matchingHandler);
+                                        } else {
+                                            sendNAK(matchingHandler); // Send NAK to all other buzzes
+                                        }
+                                    }
                                 } catch (IOException e) {
                                     System.out.println("Failed to send ACK to " + address.getHostAddress());
                                     e.printStackTrace();
@@ -143,6 +153,10 @@ public class TriviaServer {
 
     private static void sendACK(ClientHandler clientHandler) throws IOException {
         clientHandler.send("ACK");
+    }
+    
+    private static void sendNAK(ClientHandler clientHandler) throws IOException {
+        clientHandler.send("NAK");
     }
     
     private static synchronized void handleAnswerSubmission(String answer, InetAddress clientAddress) throws IOException {
@@ -204,18 +218,6 @@ public class TriviaServer {
             System.out.println("Error processing the submitted answer: " + answer);
         }
     }
-
-    /* private static void broadcastScore(ClientHandler client) throws IOException {
-        String scoreMessage = "SCORE:" + client.getScore();
-        client.send(scoreMessage); // Send updated score to the specific client
-    } */
-
-    // Make sure to implement broadcastNewQuestion() and broadcastMessage(String message) methods as well
-
-
-
-
-
 
     private static void broadcastNewQuestion() throws IOException {
         String questionData = "Q" + triviaQuestions.get(currentQuestionIndex).toString();
