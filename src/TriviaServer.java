@@ -139,63 +139,11 @@ public class TriviaServer {
     private static void sendCurrentQuestionToClients(ClientHandler clientHandler) throws IOException {
         String questionData = "Q" + triviaQuestions.get(currentQuestionIndex).toString();
         clientHandler.send(questionData);
-    }
+    } 
 
     private static void sendACK(ClientHandler clientHandler) throws IOException {
         clientHandler.send("ACK");
     }
-    
-  /* private static synchronized void handleAnswerSubmission(String answer, InetAddress clientAddress) throws IOException {
-        System.out.println("Received answer: " + answer); // For debugging
-        currentQuestionIndex++;
-        if (currentQuestionIndex < triviaQuestions.size()) {
-            broadcastNewQuestion();
-        } else {
-            broadcastMessage("END");
-        }
-        
-            if (answer == null || answer.isEmpty()) {
-                System.out.println("Empty or null answer submitted");
-                return;
-            }
-
-            // Convert the answer to uppercase to ensure case-insensitive comparison
-            answer = answer.toUpperCase();
-
-            // Check if the answer corresponds to a valid option
-            int answerIndex = "ABCD".indexOf(answer);
-            if (answerIndex == -1) {
-                System.out.println("Invalid answer option submitted: " + answer);
-                return; // Exit if the answer is not a valid option
-            }
-
-            for (ClientHandler handler : clientHandlers) {
-                if (handler.getSocket().getInetAddress().equals(clientAddress)) {
-                    TriviaQuestion currentQuestion = triviaQuestions.get(currentQuestionIndex);
-
-                    // Additional check to avoid IndexOutOfBoundsException
-                    if (answerIndex >= 0 && answerIndex < currentQuestion.getOptions().size()) {
-                        String correctOption = currentQuestion.getCorrectAnswer();
-
-                        // Assuming the correct answer is stored as "A", "B", "C", or "D"
-                        int correctIndex = "ABCD".indexOf(correctOption.toUpperCase());
-
-                        if (correctIndex == answerIndex) {
-                            handler.addScore(10); // Increase score by 10 points for correct answer
-                            System.out.println("Correct answer submitted by: " + clientAddress);
-                        } else {
-                            System.out.println("Incorrect answer submitted by: " + clientAddress);
-                        }
-
-                        // Optional: Broadcast updated score to all clients or just the one client
-                        broadcastScore(handler);
-                    } else {
-                        System.out.println("Answer index out of bounds: " + answerIndex);
-                    }
-                    break; // Exit loop once matching handler is found and processed
-                }
-            }
-        } */
     
     private static synchronized void handleAnswerSubmission(String answer, InetAddress clientAddress) throws IOException {
         try {
@@ -216,21 +164,27 @@ public class TriviaServer {
             if (currentQuestionIndex < triviaQuestions.size()) {
                 TriviaQuestion currentQuestion = triviaQuestions.get(currentQuestionIndex);
                 String correctAnswer = currentQuestion.getCorrectAnswer(); // This should be a letter (A-D)
+                
+                ClientHandler submittingClient = clientHandlers.stream()
+                        .filter(handler -> handler.getSocket().getInetAddress().equals(clientAddress))
+                        .findFirst().orElse(null);
 
                 for (ClientHandler handler : clientHandlers) {
                     if (handler.getSocket().getInetAddress().equals(clientAddress)) {
-                        if (submittedAnswerLetter.equalsIgnoreCase(correctAnswer)) {
-                            handler.addScore(100); // Correct answer, increase score
-                            System.out.println("Correct answer submitted by: " + clientAddress);
-                        } else {
-                        	handler.subScore(150);
-                            System.out.println("Incorrect answer submitted by: " + clientAddress);
-                        }
+                    	if (submittingClient != null) {
+	                        if (submittedAnswerLetter.equalsIgnoreCase(correctAnswer)) {
+	                            submittingClient.addScore(100); // Correct answer, increase score
+	                            System.out.println("Correct answer submitted by: " + clientAddress);
+	                        } else {
+	                        	submittingClient.subScore(150);
+	                            System.out.println("Incorrect answer submitted by: " + clientAddress);
+	                        	}
+                    	}
                         
                         // Update and broadcast the score
-                        broadcastScore(handler);
+                        broadcastScore(submittingClient);
                         
-                        startClientTimer(15, handler);
+                        broadcastNewTime(15);
 
                         // Prepare for the next question or conclude the quiz
                         if (currentQuestionIndex + 1 < triviaQuestions.size()) {
@@ -283,13 +237,52 @@ public class TriviaServer {
         }
     }
    
-   private static void startClientTimer(int time, ClientHandler client) throws IOException {
-       //client.send("Time " + time);
-	   String timeMessage = "Time " + time;
-	    for (ClientHandler handler : clientHandlers) {
-	        handler.send(timeMessage); // Set the same timer for all clients
-	    }   
-   }
+   private static void broadcastNewTime(int time) throws IOException {
+	   for (ClientHandler handler : clientHandlers) {
+	    startClientTimer(time, handler); // Reset and start the timer for the new question
+	   }
+	}
+   
+	// A field to track the timer's end time for the current question.
+	private static long questionEndTime = 0;
+	
+	private static void startClientTimer(int time, ClientHandler client) throws IOException {
+	    long currentTime = System.currentTimeMillis();
+	    long newQuestionEndTime = currentTime + time * 1000L;
+	    // Only update the end time if it extends the current timer
+	    if (newQuestionEndTime > questionEndTime) {
+	        questionEndTime = newQuestionEndTime;
+	        String timeMessage = "Time " + time;
+	        for (ClientHandler handler : clientHandlers) {
+	            handler.send(timeMessage);
+	        }
+	        
+	        // Cancel any existing TimerTask and schedule a new one
+	        TimerTask moveToNextQuestionTask = new TimerTask() {
+	            @Override
+	            public void run() {
+	                // Ensure this code block is synchronized to manage concurrent updates properly
+	                synchronized (this) {
+	                    if (System.currentTimeMillis() >= questionEndTime) { // Check if it's really time to move on
+	                        try {
+	                            if (currentQuestionIndex + 1 < triviaQuestions.size()) {
+	                                currentQuestionIndex++;
+	                                broadcastNewQuestion();
+	                                broadcastNewTime(time);
+	                            } else {
+	                                broadcastMessage("END");
+	                            }
+	                        } catch (IOException e) {
+	                            e.printStackTrace();
+	                        }
+	                    }
+	                }
+	            }
+	        };
+	        // Schedule the task considering the delay from 'now' to the end time
+	        new Timer().schedule(moveToNextQuestionTask, questionEndTime - currentTime);
+	    }
+	}
 
     
     public class TriviaQuestionReader {
