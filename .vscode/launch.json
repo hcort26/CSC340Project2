@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "ClientWindow",
+            "request": "launch",
+            "mainClass": "ClientWindow",
+            "projectName": "Project2CSC340"
+        },
+        {
+            "type": "java",
             "name": "TriviaServer",
             "request": "launch",
             "mainClass": "TriviaServer",
