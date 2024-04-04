@@ -59,32 +59,25 @@ public class Server {
             socket = new DatagramSocket(portNumber);
         }
 
-        private static volatile InetAddress currentResponder = null; 
-        
-        public static void resetForNextQuestion() {
-        	currentResponder = null;
-            receivingPoll = true; 
-        }
-
-        
         public void run() {
             running = true;
             while (running) {
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
                 try {
                     socket.receive(packet);
-                    
+
                     String received = new String(packet.getData(), 0, packet.getLength());
 
                     InetAddress address = packet.getAddress();
                     int port = packet.getPort();
-                    System.out.println("Received: " + received + " from: " + address.getHostAddress() + ":" + port);
-
+                    
                     if (received.startsWith("submit:")) {
                         String answer = received.substring(7);
                         handleAnswerSubmission(answer, address); 
                     }
                     
+                    System.out.println(
+                            "Received: " + received + " from: " + address.getHostAddress() + ":" + port);
                     if (receivingPoll) {
                         receivingPoll = false;
                         if (messageQueue.size() == 0) {
@@ -95,58 +88,44 @@ public class Server {
                                     break;
                                 }
                             }
-
                             if (matchingHandler != null) {
+                                System.out.println("Sending ACK to " + address.getHostAddress());
                                 try {
-                                	if ("buzz".equals(received.trim())) {
-                                        if (currentResponder == null) {
-                                            currentResponder = address; // Marks the first responder
-                                            System.out.println("Sending ACK to " + address.getHostAddress());
-            	                            resetForNextQuestion();
-            	                            broadcastNewTime(10);
-            	                            
-            	                            answerQueue.offer(matchingHandler);
-            	                            
-            	                            if (!answerQueue.isEmpty()) {
-            	                            ClientHandler firstResponder = answerQueue.poll();
-            	                            try {
-            	                                sendACK(firstResponder);
-            	                            } catch (IOException e) {
-            	                                e.printStackTrace();
-            	                            	}
-            	                            
-            	                         // Send NAK to the rest of the clients in the queue
-            	                            while (!answerQueue.isEmpty()) {
-            	                                ClientHandler handler = answerQueue.poll();
-            	                                try {
-            	                                    sendNAK(handler);
-            	                                } catch (IOException e) {
-            	                                    e.printStackTrace();
-            	                                }
-            	                            }
-            	                            }
-                                        } else {
-                                        	sendNAKToAllExceptCurrentResponder(matchingHandler);
-                                        	System.out.println(matchingHandler.getSocket() + "has closed");
-                                        }
-                                    }
+                                    matchingHandler.send("ACK");
+                                    startClientTimer(10, matchingHandler);
+                                    //matchingHandler.setCanAnswer(true);
                                 } catch (IOException e) {
-                                    System.out.println("Failed to send ACK to " + address.getHostAddress());
                                     e.printStackTrace();
                                 }
                             } else {
-                                System.out.println("No matching TCP client found for " + address.getHostAddress());
-                            } 
+                                System.out.println("No matching client found for " + address.getHostAddress());
+                            }
                         }
-                            
+                    } else {
+                        ClientHandler matchingHandler = null;
+                        for (ClientHandler handler : clientHandlers) {
+                            if (handler.getSocket().getInetAddress().equals(address)) {
+                                matchingHandler = handler;
+                                break;
+                            }
+                        }
+                        if (matchingHandler != null) {
+                            System.out.println("Sending NAK to " + address.getHostAddress());
+                            try {
+                                matchingHandler.send("NAK");
+                                System.out.println("Sent NAK to " + address.getHostAddress());
+                            } catch (IOException e) {
+                                System.out.println(matchingHandler.getSocket() + "has closed");
+                            }
+                        } else {
+                            System.out.println("No matching TCP client found for " + address.getHostAddress());
+                        }
                     }
                 } catch (IOException e) {
-                    System.out.println("IOException in UDPThread: " + e.getMessage());
                     e.printStackTrace();
                 }
             }
             socket.close();
-            
         }
     }
 
@@ -228,7 +207,7 @@ public class Server {
 	                        if (submittedAnswerLetter.equalsIgnoreCase(correctAnswer)) {
 	                            submittingClient.addScore(100);
 	                            System.out.println("Correct answer submitted by: " + clientAddress);
-	                            UDPThread.currentResponder = null;
+	                            //UDPThread.currentResponder = null;
 	                        } else {
 	                        	submittingClient.subScore(150);
 	                            System.out.println("Incorrect answer submitted by: " + clientAddress);
@@ -304,7 +283,7 @@ public class Server {
 	                // Manages concurrent updates properly
 	                synchronized (this) {
 	                	
-	                	UDPThread.resetForNextQuestion();
+	                	//UDPThread.resetForNextQuestion();
 	                	
 	                    if (System.currentTimeMillis() >= questionEndTime) { 
 	                        try {
