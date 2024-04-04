@@ -106,6 +106,7 @@ public class ClientWindow implements ActionListener {
             case "Submit":
                 if (canAnswer) { // Check if answering is allowed
                     submitAnswer();
+                    poll.setEnabled(true);
                 }
                 break;
             default:
