@@ -111,7 +111,7 @@ public class TriviaServer {
     }
 
     // reads in file and adds String question, List<String> options, String
-    // correctAnswer to arraylist of trivaQuestions
+    // correctAnswer to array list of trivaQuestions
     public static void readInFile(String path) throws FileNotFoundException {
         File file = new File(path);
         if (!file.exists())
@@ -220,15 +220,17 @@ public class TriviaServer {
                 for (ClientHandler handler : clientHandlers) {
                     if (handler.getSocket().getInetAddress().equals(clientAddress)) {
                         if (submittedAnswerLetter.equalsIgnoreCase(correctAnswer)) {
-                            handler.addScore(10); // Correct answer, increase score
+                            handler.addScore(100); // Correct answer, increase score
                             System.out.println("Correct answer submitted by: " + clientAddress);
                         } else {
-                        	handler.subScore(10);
+                        	handler.subScore(150);
                             System.out.println("Incorrect answer submitted by: " + clientAddress);
                         }
                         
                         // Update and broadcast the score
                         broadcastScore(handler);
+                        
+                        startClientTimer(15, handler);
 
                         // Prepare for the next question or conclude the quiz
                         if (currentQuestionIndex + 1 < triviaQuestions.size()) {
@@ -277,9 +279,17 @@ public class TriviaServer {
    private static void broadcastScore(ClientHandler client) throws IOException {
         String scoreMessage = "SCORE:" + client.getScore();
         for (ClientHandler handler : clientHandlers) {
-            handler.send(scoreMessage);
+        	client.send(scoreMessage);
         }
     }
+   
+   private static void startClientTimer(int time, ClientHandler client) throws IOException {
+       //client.send("Time " + time);
+	   String timeMessage = "Time " + time;
+	    for (ClientHandler handler : clientHandlers) {
+	        handler.send(timeMessage); // Set the same timer for all clients
+	    }   
+   }
 
     
     public class TriviaQuestionReader {
