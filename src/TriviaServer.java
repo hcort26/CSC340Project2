@@ -59,7 +59,7 @@ public class Server {
 
         private static volatile InetAddress currentResponder = null; 
         
-        public void resetForNextQuestion() {
+        public static void resetForNextQuestion() {
         	currentResponder = null;
             receivingPoll = true; 
         }
@@ -102,6 +102,7 @@ public class Server {
                                             sendACK(matchingHandler);
                                             System.out.println("Sending ACK to " + address.getHostAddress());
             	                            resetForNextQuestion();
+            	                            broadcastNewTime(10);
                                         } else {
                                         	sendNAK(matchingHandler);
                                         	System.out.println(matchingHandler.getSocket() + "has closed");
@@ -268,6 +269,9 @@ public class Server {
 	            public void run() {
 	                // Manages concurrent updates properly
 	                synchronized (this) {
+	                	
+	                	UDPThread.resetForNextQuestion();
+	                	
 	                    if (System.currentTimeMillis() >= questionEndTime) { 
 	                        try {
 	                            if (currentQuestionIndex + 1 < triviaQuestions.size()) {
