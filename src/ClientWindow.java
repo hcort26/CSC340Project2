@@ -22,7 +22,7 @@ public class ClientWindow implements ActionListener {
     private JLabel score;
     private Timer timer;
     private TimerTask clock;
-    private final String serverIP = "127.0.0.1";
+    private final String serverIP = "10.111.145.65";
     private final int serverPort = 12345;
     private static boolean canAnswer = false;
     private JFrame window;
@@ -30,7 +30,7 @@ public class ClientWindow implements ActionListener {
 
     public ClientWindow() {
         window = new JFrame("Trivia");
-        question = new JLabel("Q1. This is a sample question");
+        question = new JLabel("Waiting for Trivia to start...");
         question.setBounds(10, 5, 350, 100);
         window.add(question);
 
@@ -88,14 +88,7 @@ public class ClientWindow implements ActionListener {
         // input refers to the radio button you selected or button you clicked
         String input = e.getActionCommand();
         switch (input) {
-            case "Option 1": // Your code here
-                break;
-            case "Option 2": // Your code here
-                break;
-            case "Option 3": // Your code here
-                break;
-            case "Option 4": // Your code here
-                break;
+            
             case "Poll":
             	try {
                     byte[] buf = "buzz".getBytes();
@@ -113,7 +106,6 @@ public class ClientWindow implements ActionListener {
             case "Submit":
                 if (canAnswer) { // Check if answering is allowed
                     submitAnswer();
-                    resetTimer();
                 }
                 break;
             default:
@@ -123,13 +115,16 @@ public class ClientWindow implements ActionListener {
     }
 
     // this class is responsible for running the timer on the window
-    private void resetTimer() {
-        if (timer != null) {
-            timer.cancel(); // Cancel any existing timer
+    private void resetTimer(int durationInSeconds) {
+        if (clock != null) {
+            clock.cancel();
         }
-        timer = new Timer(); // Create a new Timer
+        if (timer != null) {
+            timer.cancel();
+        }
+        timer = new Timer();
         clock = new TimerTask() {
-            int duration = 30; // Reset duration to 30 seconds
+            int duration = durationInSeconds; // Use the duration provided by the server
 
             @Override
             public void run() {
@@ -138,7 +133,7 @@ public class ClientWindow implements ActionListener {
                         timerLabel.setText("Time's Up!");
                         canAnswer = false;
                         submit.setEnabled(canAnswer);
-                        cancel(); // Cancel this timer task
+                        cancel();
                     } else {
                         timerLabel.setText("Time left: " + duration);
                         if (duration < 6) {
@@ -151,7 +146,7 @@ public class ClientWindow implements ActionListener {
                 });
             }
         };
-        timer.scheduleAtFixedRate(clock, 0, 1000); // Schedule the task for execution
+        timer.scheduleAtFixedRate(clock, 0, 1000);
     }
 
     public static void main(String[] args) {
@@ -187,11 +182,20 @@ public class ClientWindow implements ActionListener {
                 System.out.println("ACK");
                 canAnswer = true;
                 submit.setEnabled(canAnswer);
+            } else if (str.startsWith("Time ")) {
+                int time = Integer.parseInt(str.substring("Time ".length()));
+                resetTimer(time); // Reset timer based on server's message
             }
         }
         reader.close();
     }
 
+    private void updateScoreLabel(String newScore) {
+        SwingUtilities.invokeLater(() -> {
+            score.setText("SCORE: " + newScore);
+            clientScore = Integer.parseInt(newScore); // Update internal score tracking
+        });
+    }
 
     private void processQuestion(String questionData) {
         String[] parts = questionData.split("\\[");
@@ -235,13 +239,6 @@ public class ClientWindow implements ActionListener {
         }
     }
 
-    private void updateScoreLabel(String newScore) {
-        // Ensure the update is performed on the EDT
-        SwingUtilities.invokeLater(() -> {
-            score.setText("SCORE: " + newScore);
-        });
-    }
-
     
     private String getSelectedOption() {
         for (int i = 0; i < options.length; i++) {
@@ -252,4 +249,5 @@ public class ClientWindow implements ActionListener {
         }
         return ""; // No option selected
     }
+    
 }
