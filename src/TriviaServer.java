@@ -14,7 +14,7 @@ public class TriviaServer {
     public static void main(String[] args) {
         triviaQuestions = new ArrayList<>();
         try {
-            readInFile("qAndA.txt");
+            readInFile("QA.txt");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -57,7 +57,12 @@ public class TriviaServer {
             socket = new DatagramSocket(portNumber);
         }
 
-        private static volatile InetAddress currentResponder = null; // To track who is the current responder
+        private static volatile InetAddress currentResponder = null; 
+        
+        public void resetForNextQuestion() {
+        	currentResponder = null;
+            receivingPoll = true; 
+        }
 
         
         public void run() {
@@ -67,17 +72,15 @@ public class TriviaServer {
                 try {
                     socket.receive(packet);
                     
-                 // Extract the message from the packet
                     String received = new String(packet.getData(), 0, packet.getLength());
 
                     InetAddress address = packet.getAddress();
                     int port = packet.getPort();
                     System.out.println("Received: " + received + " from: " + address.getHostAddress() + ":" + port);
 
-                    // Handling answer submissions
                     if (received.startsWith("submit:")) {
-                        String answer = received.substring(7); // Extract the answer part of the message
-                        handleAnswerSubmission(answer, address); // Handle the submission
+                        String answer = received.substring(7);
+                        handleAnswerSubmission(answer, address); 
                     }
                     
                     if (receivingPoll) {
@@ -95,10 +98,12 @@ public class TriviaServer {
                                 try {
                                 	if ("buzz".equals(received.trim())) {
                                         if (currentResponder == null) {
-                                            currentResponder = address; // Mark the first responder
+                                            currentResponder = address; // Marks the first responder
                                             sendACK(matchingHandler);
                                             System.out.println("Sending ACK to " + address.getHostAddress());
+            	                            resetForNextQuestion();
                                         } else {
+                                        	sendNAK(matchingHandler);
                                         	System.out.println(matchingHandler.getSocket() + "has closed");
                                         }
                                     }
@@ -108,17 +113,7 @@ public class TriviaServer {
                                 }
                             } else {
                                 System.out.println("No matching TCP client found for " + address.getHostAddress());
-                            } if (matchingHandler != null) {
-                            	if ("buzz".equals(received.trim())) {
-                                System.out.println("Sending NAK to " + address.getHostAddress());
-                                try {
-                                    sendNAK(matchingHandler);
-                                    System.out.println("Sent NAK to " + address.getHostAddress());
-                                } catch (IOException e) {
-                                    System.out.println(matchingHandler.getSocket() + "has closed");
-                                }
-                            }
-                            }
+                            } 
                         }
                             
                     }
@@ -128,11 +123,10 @@ public class TriviaServer {
                 }
             }
             socket.close();
+            
         }
     }
 
-    // reads in file and adds String question, List<String> options, String
-    // correctAnswer to array list of trivaQuestions
     public static void readInFile(String path) throws FileNotFoundException {
         File file = new File(path);
         if (!file.exists())
@@ -160,6 +154,7 @@ public class TriviaServer {
     private static void sendCurrentQuestionToClients(ClientHandler clientHandler) throws IOException {
         String questionData = "Q" + triviaQuestions.get(currentQuestionIndex).toString();
         clientHandler.send(questionData);
+        UDPThread.currentResponder = null;
     } 
 
     private static void sendACK(ClientHandler clientHandler) throws IOException {
@@ -170,25 +165,24 @@ public class TriviaServer {
         clientHandler.send("NAK");
     }
     
+    
     private static synchronized void handleAnswerSubmission(String answer, InetAddress clientAddress) throws IOException {
         try {
-            // Extract the numeric part from the submitted answer (e.g., "Option 1")
-            String numericPart = answer.replaceAll("[^0-9]", ""); // Remove all non-digit characters
-            int optionIndex = Integer.parseInt(numericPart) - 1; // Convert to 0-based index
+
+            String numericPart = answer.replaceAll("[^0-9]", ""); 
+            int optionIndex = Integer.parseInt(numericPart) - 1; 
 
             if (optionIndex < 0 || optionIndex > 3) {
                 System.out.println("Invalid answer option submitted: " + answer);
-                return; // Exit if the option is not within the valid range
+                return; 
             }
 
-            // Convert the numeric option to the corresponding letter
             String[] optionsToLetters = {"A", "B", "C", "D"};
             String submittedAnswerLetter = optionsToLetters[optionIndex];
 
-            // Assuming the triviaQuestions list and currentQuestionIndex are correctly maintained
             if (currentQuestionIndex < triviaQuestions.size()) {
                 TriviaQuestion currentQuestion = triviaQuestions.get(currentQuestionIndex);
-                String correctAnswer = currentQuestion.getCorrectAnswer(); // This should be a letter (A-D)
+                String correctAnswer = currentQuestion.getCorrectAnswer(); 
                 
                 ClientHandler submittingClient = clientHandlers.stream()
                         .filter(handler -> handler.getSocket().getInetAddress().equals(clientAddress))
@@ -198,7 +192,7 @@ public class TriviaServer {
                     if (handler.getSocket().getInetAddress().equals(clientAddress)) {
                     	if (submittingClient != null) {
 	                        if (submittedAnswerLetter.equalsIgnoreCase(correctAnswer)) {
-	                            submittingClient.addScore(100); // Correct answer, increase score
+	                            submittingClient.addScore(100);
 	                            System.out.println("Correct answer submitted by: " + clientAddress);
 	                        } else {
 	                        	submittingClient.subScore(150);
@@ -206,19 +200,18 @@ public class TriviaServer {
 	                        	}
                     	}
                         
-                        // Update and broadcast the score
+                        // Update and broadcast the score/new time
                         broadcastScore(submittingClient);
                         
                         broadcastNewTime(15);
-
-                        // Prepare for the next question or conclude the quiz
+                       
                         if (currentQuestionIndex + 1 < triviaQuestions.size()) {
                             currentQuestionIndex++;
                             broadcastNewQuestion();
                         } else {
                             broadcastMessage("END");
                         }
-                        break; // Exit once the matching handler is found
+                        break; 
                     }
                 }
             } else {
@@ -252,17 +245,17 @@ public class TriviaServer {
    
    private static void broadcastNewTime(int time) throws IOException {
 	   for (ClientHandler handler : clientHandlers) {
-	    startClientTimer(time, handler); // Reset and start the timer for the new question
+	    startClientTimer(time, handler); 
 	   }
 	}
    
-	// A field to track the timer's end time for the current question.
+
 	private static long questionEndTime = 0;
 	
 	private static void startClientTimer(int time, ClientHandler client) throws IOException {
 	    long currentTime = System.currentTimeMillis();
 	    long newQuestionEndTime = currentTime + time * 1000L;
-	    // Only update the end time if it extends the current timer
+	    
 	    if (newQuestionEndTime > questionEndTime) {
 	        questionEndTime = newQuestionEndTime;
 	        String timeMessage = "Time " + time;
@@ -270,13 +263,12 @@ public class TriviaServer {
 	            handler.send(timeMessage);
 	        }
 	        
-	        // Cancel any existing TimerTask and schedule a new one
 	        TimerTask moveToNextQuestionTask = new TimerTask() {
 	            @Override
 	            public void run() {
-	                // Ensure this code block is synchronized to manage concurrent updates properly
+	                // Manages concurrent updates properly
 	                synchronized (this) {
-	                    if (System.currentTimeMillis() >= questionEndTime) { // Check if it's really time to move on
+	                    if (System.currentTimeMillis() >= questionEndTime) { 
 	                        try {
 	                            if (currentQuestionIndex + 1 < triviaQuestions.size()) {
 	                                currentQuestionIndex++;
@@ -310,12 +302,12 @@ public class TriviaServer {
                 if (line.matches("^\\d+\\.\\s+.+")) { // Matches the question number and text
                     String questionText = line.substring(line.indexOf(' ') + 1);
                     List<String> options = new ArrayList<>();
-                    for (int i = 0; i < 4 && scanner.hasNextLine(); i++) { // Read the next 4 lines as options
+                    for (int i = 0; i < 4 && scanner.hasNextLine(); i++) { 
                         options.add(scanner.nextLine().trim());
                     }
                     String correctAnswerLine = scanner.nextLine().trim();
                     if (correctAnswerLine.startsWith("Correct Answer:")) {
-                        String correctAnswer = correctAnswerLine.substring(15).trim(); // Get the correct answer identifier
+                        String correctAnswer = correctAnswerLine.substring(15).trim(); 
                         // Convert the correct answer identifier (A, B, C, D) to the actual correct answer
                         String correctOption = options.get("ABCD".indexOf(correctAnswer.charAt(0)));
                         questions.add(new TriviaQuestion(questionText, options, correctOption));
@@ -328,8 +320,8 @@ public class TriviaServer {
 
         public static void main(String[] args) {
             try {
-                List<TriviaQuestion> questions = readQuestionsFromFile("qAndA.txt");
-                // For demonstration, print out loaded questions
+                List<TriviaQuestion> questions = readQuestionsFromFile("QA.txt");
+          
                 for (TriviaQuestion question : questions) {
                     System.out.println(question.getQuestion());
                     System.out.println(question.getOptions());
@@ -342,5 +334,4 @@ public class TriviaServer {
             }
         }
     }
-
 }
