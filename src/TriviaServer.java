@@ -3,7 +3,7 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class Server {
+public class TriviaServer {
     private static final int portNumber = 12345;
     private static ConcurrentLinkedQueue<String> messageQueue = new ConcurrentLinkedQueue<>();
     private static List<TriviaQuestion> triviaQuestions;
