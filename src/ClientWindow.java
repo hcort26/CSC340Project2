@@ -188,6 +188,7 @@ public class ClientWindow implements ActionListener {
                 System.out.println("NAK");
                 canAnswer = false;
                 submit.setEnabled(false); // Keep submit disabled
+                poll.setEnabled(false);
                 for (JRadioButton option : options) {
                     option.setEnabled(false); // Keep options disabled
                 }
